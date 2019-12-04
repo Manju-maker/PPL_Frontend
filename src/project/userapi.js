@@ -1,7 +1,7 @@
 var userapi = require("./mongooseSchema");
 
 var SGmail = require("@sendgrid/mail");
-SGmail.setApiKey("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")
+SGmail.setApiKey("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")
 
 module.exports = {
 
@@ -74,6 +74,20 @@ verifyUser:function(data){
         })
     
 },
+
+verifyPassLink: function(data){
+return new Promise((resolve,reject)=>{
+    userapi.updateOne({"_id":data},{$set:{forgot:true}},function(err,result){
+        if(result){
+            resolve("Re enter your password")
+        }
+        else{
+            reject(err);
+        }
+    })
+})
+},
+
 loginuser:function(logdata){
         console.log("data--",logdata)
         return new Promise((resolve,reject)=>{
@@ -111,8 +125,86 @@ loginuser:function(logdata){
             })
     
         })
-    }
-    }
+    },
+
+
+resetPassword: function(data){
+    console.log("Id",data.pass)
+ return new Promise((resolve,reject)=>{
+     userapi.updateOne({"_id":data.id},{$set:{pass:data.pass}},function(err,result){
+         if(result){
+             console.log(result);
+
+         }
+         else{
+             console.log(err);
+             reject(err);
+         }
+     })
+ })
+},
+forgot:function(data){
+    //console.log(data)
+    return new Promise((resolve,reject)=>{
+        userapi.updateOne({"email":data.email},{$set:{forgot:true}},function(err,result){
+          if(result){
+              
+             console.log(result)
+            userapi.find({"email":data.email},function(err, result1){
+                if(result1){
+                    console.log("result1",result1);
+                    resolve(result1)
+                }
+                else{
+                    reject(err);
+                }
+            })
+          }
+          else{
+              console.log("email not registered")
+              resolve("Email is not Registered")
+          }
+    
+          if(err){
+              reject(err);
+          }
+        })
+
+    })
+}
+
+
+// forgot:function(data){
+//     console.log(data.email)
+//     return new Promise((resolve,reject)=>{
+//         userapi.findOne({"email":data.email},function(err,result){
+//             if(result){
+                
+//                 console.log(result)
+//                 const msgs = {
+//                     to: data["email"],
+//                     from: "bhattmanju46@gmail.com",
+//                     subject: "Sending with Twilio SendGrid is Fun",
+//                     text: "Link sent",
+//                     html: "Click on the link to reset your password <br> http://localhost:8081/verifyLink/"+result["id"]
+//                     };
+//                     SGmail.send(msgs);
+//                     resolve(result);
+                   
+//             }
+//             else if(err){
+//                 console.log("Err",err)
+//                 reject(err);
+//             }
+//             else{
+//                 console.log("Not registered")
+//                 resolve("email not registered");
+//             }
+//         })
+
+//     })
+// }
+}
     
     
 

@@ -5,7 +5,7 @@ const axios = require('axios');
 class Login extends React.Component{
     constructor(props){
         super(props);
-        this.state={email:'',pass:'',data:[],data1:''}
+        this.state= {email:'',pass:'',data:[],data1:''}
     }
 
 
@@ -13,7 +13,7 @@ componentDidMount(){
  
   if(localStorage.getItem("tokenID")){
    //console.log("Login--TokenId--",localStorage.getItem("tokenID"))
-    this.props.history.push('/timeline');
+    this.props.history.push('/index');
   }
 }
 
@@ -38,7 +38,7 @@ handleClick=(e)=>{
           if(this.state.data!=="Verify your email id first"){
             
             if(this.state.data.length>0){
-                this.props.history.push('/timeline');
+                this.props.history.push('/index');
             }
           }
         }

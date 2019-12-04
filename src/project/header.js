@@ -30,6 +30,11 @@ class Header extends React.Component{
       showMenu: !this.state.showMenu
     });
   }
+homeClick=(e)=>{
+  e.preventDefault();
+this.props.history.push('/timeline');
+
+}
 
 render(){
     return(
@@ -73,7 +78,7 @@ render(){
                 <div className="logo"><a href="#"><img src="images/logo.png" /></a></div>
                 <div className="navigatn">
                   <ul>
-                    <li><a href="#" className="active">Home</a></li>
+                    <li><a href="#" onClick={this.homeClick} className="active">Home</a></li>
                     <li><a href="#"> E-Coupons </a></li>
                     <li><a href="#">E-Brands </a></li>
                     <li><a href="#"> Resuse Market </a></li>

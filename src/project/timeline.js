@@ -1,29 +1,36 @@
+import {Link} from 'react-router-dom'
 import React from 'react'
 import axios from   "axios"
 class Timeline extends React.Component{
   constructor(props){
     super(props)
-    this.state={
-        email:"",
-        imageupload:"",
-        userId:"",
-        picture:[],
-        cat:"",
-        Category:[],
-        toggle:false,
-        showForm:true,
-       
+    this.state={ email:"",imageupload:"", userId:"",  picture:[],cat:"", Category:[], showForm:false, date:new Date()   
     }}
    
 componentWillMount(){
- 
+  
   if(localStorage.getItem("tokenID")){
-   //console.log("Login--TokenId--",localStorage.getItem("tokenID"))
+    //console.log(localStorage.getItem("tokenID"))
     this.props.history.push('/timeline');
   }
   else{
     this.props.history.push('/login');
   }
+
+}
+
+componentDidMount(){
+  let Id = {userID:localStorage.getItem("tokenID")}
+  axios.post("http://localhost:8081/timeline/getCategories",Id).then((response)=>{
+      
+ //   console.log("Categories--",response.data);
+    this.setState({Category:response.data})
+    this.setState({picture:response.data})
+    
+    //  console.log("array of cat",tthis.state.Category);
+    
+    });
+ 
 }
      
     handlechange = (e)=>{
@@ -57,34 +64,14 @@ this.setState({picture:result})
 console.log("Picture--",this.state.picture)
 
 })
+this.setState({showForm:!this.state.showForm})
     
-}
-
-handleMyClick=(e)=>{
- 
-  axios.post("http://localhost:8081/timeline/getCategories",this.state).then((response)=>{
-  
-    // console.log("category==",JSON.stringify(response.data))
-  this.setState({Category:response.data})
- 
-    
-  })
 }
 
 
  showForm = (e) => {
   
-   if(this.state.toggle===false){
-    axios.post("http://localhost:8081/timeline/getCategories",this.state).then((response)=>{
-      
-    // console.log("Categories--",typeof(response.data));
-    this.setState({Category:response.data})
-    this.setState({picture:response.data})
-    //  console.log("array of cat",tthis.state.Category);
-    
-    })
-    this.setState({toggle:!this.state.toggle})
-   }
+ 
   
   return (
     <div> 
@@ -97,7 +84,7 @@ handleMyClick=(e)=>{
           required/>
           <br></br><br></br>
           Category:
-          <select name="cat" onChange={this.handlechange}>
+          <select name="cat" onChange={this.handlechange} required>
               
 
    
@@ -113,9 +100,11 @@ handleMyClick=(e)=>{
          
           {/* <input type="text" name="cat" onChange={this.handlechange} required /><br></br><br></br> */}
           
-<input type = "submit" value="upload" />
+<input type = "submit" value="upload"  />
+
 
 </form>
+
 
 
      </div>
@@ -125,12 +114,16 @@ handleMyClick=(e)=>{
 
 handleClick=(e)=>{
   e.preventDefault();
-  this.setState({showForm:true})
+  this.setState({showForm:!this.state.showForm})
   
 }
 
 openPost=(e)=>{
-  this.props.history.push('/singlePost');
+  axios.post("http://localhost:8081/timeline/getCategories",this.state).then((response)=>{
+   // console.log("Single Post data ",response.data)
+    this.props.history.push('/singlePost');
+  })
+ 
 }
 
 render(){
@@ -249,23 +242,22 @@ render(){
                 <div className="div_a">
                   <div className="div_title">User Interface PSD Source files Web Designing for web</div>
                   <div className="btm_rgt">
-                    <div className="btm_arc">{pic.cat}t</div>
+                    <div className="btm_arc">{pic.cat}</div>
                   </div>
                   <div className="div_top">
           
                     <div className="div_top_lft"><img src="images/img_6.png" />{pic.email}</div>
-                    <div className="div_top_rgt"><span className="span_date">{new Date().getDate() + "-" + (new Date().getMonth() + 1) + "-" + new Date().getFullYear()}</span><span className="span_time">{new Date().getHours() + ":" + new Date().getMinutes() +"pm" }</span></div>
+                    <div className="div_top_rgt"><span className="span_date">{pic.uploadTime.slice(0,10)}</span><span className="span_time">{pic.uploadTime.slice(11,16)}</span></div>
                   </div>
                   </div>
                   </div>
-                    <img onClick={this.openPost} src={`http://localhost:8081/${pic.imageupload}`} alt={this.state.alt}/> 
-                    <div className="div_btm">
+                    <Link to={`/myPost/${pic._id}`}><img style={{width:400 ,height:300}} src={`http://localhost:8081/${pic.imageupload}`} alt={this.state.alt}/> </Link>                  <div className="div_btm">
                     <div className="btm_list">
                       <ul>
                         <li><a href="#"><span className="btn_icon"><img src="images/icon_001.png" alt="share" /></span>Share</a></li>
                         <li><a href="#"><span className="btn_icon"><img src="images/icon_002.png" alt="share" /></span>Flag</a></li>
                         <li><a href="#"><span className="btn_icon"><img src="images/icon_003.png" alt="share" /></span>0 Likes</a></li>
-                        <li><a href="#"><span className="btn_icon"><img src="images/icon_004.png" alt="share" /></span>4 Comments</a></li>
+                        <li><a href="#"><span className="btn_icon"><img src="images/icon_004.png" alt="share" /></span>{pic.comment.length} Comments</a></li>
                       </ul>
                     </div>
                   </div>

@@ -29,7 +29,7 @@ router.get('/login',(req,res)=>{
 
 router.post('/adduser', async function(req,res){
     try{
-        console.log("req.body",req.body)
+        //console.log("req.body",req.body)
     var result = await userapi.Adduser(req.body);
     res.send(result);
     }
@@ -54,7 +54,7 @@ router.post('/adduser', async function(req,res){
 router.get('/verify/:email', async function(req, res){
 
     try{
-        console.log(req.params.email)
+        //console.log(req.params.email)
     var result = await userapi.verifyUser(req.params.email);
     res.send(result);
     }
@@ -64,6 +64,8 @@ router.get('/verify/:email', async function(req, res){
     }
 
 })
+
+
 
 // router.post('/userdata', async function(req, res){
 //     try{
@@ -78,7 +80,7 @@ router.get('/verify/:email', async function(req, res){
 
 router.post('/login', async function(req, res){
     try{
-        console.log("req.body",JSON.stringify(req.body))
+       // console.log("req.body",JSON.stringify(req.body))
         var result = await userapi.loginuser(req.body);
         res.send(result);
     }
@@ -87,8 +89,42 @@ router.post('/login', async function(req, res){
     }
  })
 
+ router.get('/verifyLink/:email', async function(req, res){
 
+    try{
+        //console.log(req.params.email)
+    var result = await userapi.verifyPassLink(req.params.email);
+    res.send(result);
+    }
 
+    catch(err){
+        res.send(err);
+    }
+
+})
+
+router.post('/forgotPass', async function(req,res){
+    try{
+        console.log("forgot",req.body)
+var result = await userapi.forgot(req.body);
+console.log("Router result",result)
+res.send(result);
+    }
+    catch(err){
+        res.send(err);
+    }
+})
+
+router.post('/resetPass', async function(req,res){
+    try{
+        console.log("Req.body",req.body)
+        var result = await userapi.resetPassword(req.body);
+        res.send(result);
+    }
+    catch(err){
+        res.send(err);
+    }
+})
 
 
 module.exports = router;

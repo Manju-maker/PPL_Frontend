@@ -5,7 +5,8 @@ var details = mongoose.Schema({
     email:{type:String},
     firstname:{type:String},
     lastname:{type:String},
-    verify:{type:Boolean , default:false}
+    verify:{type:Boolean , default:false},
+    forgot:{type:Boolean, default:false}
 });
 module.exports=mongoose.model("user",details);
 

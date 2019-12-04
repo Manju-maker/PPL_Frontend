@@ -5,7 +5,8 @@ var detail = mongoose.Schema({
     path:{type:String},
     uploadTime: { type: Date, default: Date.now},
     userId:{type:String},
-    cat:{type:String}
+    cat:{type:String},
+    comment:{type:Array}
 
 });
 module.exports=mongoose.model("imageDetails",detail);

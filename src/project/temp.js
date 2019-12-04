@@ -1,87 +1,167 @@
-var NewComponent = React.createClass({
-  render: function() {
-    return (
-      <div>
-        <meta charSet="utf-8" />
-        <title>Home</title>
-        <link href="css/bootstrap.css" rel="stylesheet" type="text/css" />
-        <link href="css/bootstrap-responsive.css" rel="stylesheet" type="text/css" />
-        <div className="navbar navbar-inverse navbar-fixed-top">
-          <div className="navbar-inner">
-            <div className="container">
-              <button type="button" className="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse"> <span className="icon-bar" /> <span className="icon-bar" /> <span className="icon-bar" /> </button>
-              <a className="brand" href>PPL</a>
-              <div className="pro_info pull-right">
-                <div className="pro_icn"><img src="images/pic_small.png" /></div>
-                <div className="pro_txt">Me<b className="caret" /></div>
-                <ul className="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                  <li><a tabIndex={-1} href="#">My Profile</a></li>
-                  <li><a tabIndex={-1} href="#">Message Box</a></li>
-                  <li><a tabIndex={-1} href="#">Change Language</a></li>
-                  <li className="divider" />
-                  <li><a tabIndex={-1} href="#">
-                      <input type="text" placeholder="search" />
-                    </a></li>
-                </ul>
-              </div>
-              <div className="nav-collapse collapse">
-                <ul className="nav">
-                  <li className="active"> <a href>Home</a> </li>
-                  <li className> <a href>E-Coupons</a> </li>
-                  <li className> <a href>E-Brands</a> </li>
-                  <li className> <a href>Resuse Market</a> </li>
-                  <li className> <a href>Lost and Found</a> </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="header">
-          <div className="header_lft">
-            <div className="logo"><a href="#"><img src="images/logo.png" /></a></div>
-            <div className="navigatn">
-              <ul>
-                <li><a href="#" className="active">Home</a></li>
-                <li><a href="#"> E-Coupons </a></li>
-                <li><a href="#">E-Brands </a></li>
-                <li><a href="#"> Resuse Market </a></li>
-                <li><a href="#"> Lost and Found</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="header_rgt">
-            <div className="flag_div"><img src="images/flag.png" /></div>
-            <input type="text" placeholder="Search" className="txt_box" />
-            <div className="msg_box"><a href="#"><span className="msg_count">100</span></a></div>
-            <div className="info_div">
-              <div className="image_div"> <img src="images/pic.png" /> </div>
-              <div className="info_div1">Me</div>
-            </div>
-          </div>
-        </div>
+import {Link} from 'react-router-dom'
+import React from 'react'
+import axios from   "axios"
+class Timeline extends React.Component{
+  constructor(props){
+    super(props)
+    this.state={
+        email:"",
+        imageupload:"",
+        userId:"",
+        picture:[],
+        cat:"",
+        Category:[],
+        showForm:false,
+       
+    }}
+   
+componentWillMount(){
+  axios.post("http://localhost:8081/timeline/getCategories",this.state).then((response)=>{
+      
+    // console.log("Categories--",typeof(response.data));
+    this.setState({Category:response.data})
+    this.setState({picture:response.data})
+    //  console.log("array of cat",tthis.state.Category);
+    
+    });
+ 
+  if(localStorage.getItem("tokenID")){
+    this.props.history.push('/timeline');
+  }
+  else{
+    this.props.history.push('/login');
+  }
+}
+     
+    handlechange = (e)=>{
+   
+      const value = e.target.value;
+      const name = e.target.name;
+      this.setState({
+        [name]:value
+      })
+    }
+    handleFile = (e)=>{
+
+      this.setState({imageupload: e.target.files[0] },()=>{
+
+      });
+   
+    }
+
+
+    submitform = (e)=>{
+e.preventDefault();
+let id = localStorage.getItem("tokenID");
+let formData = new FormData;
+formData.append("email",this.state.email)
+formData.append("userId",id)
+formData.append("cat",this.state.cat)
+formData.append("imageupload",this.state.imageupload)
+axios.post("http://localhost:8081/timeline/imageupload",formData).then((response)=>{
+  const result = response.data;
+this.setState({picture:result})
+console.log("Picture--",this.state.picture)
+
+})
+    
+}
+
+
+ showForm = (e) => {
+  
+ 
+  
+  return (
+    <div> 
+ <form onSubmit={this.submitform} >
+<input type = "text" onChange = {this.handlechange} name = "email" required/><br></br><br></br>
+<input
+            type="file"
+            name="imageupload"
+            onChange={this.handleFile}
+          required/>
+          <br></br><br></br>
+          Category:
+          {/* <select name="cat" onChange={this.handlechange}>
+              
+
+   
+    
+          {this.state.Category.length>0? this.state.Category.map((lists)=>{
+    return(   
+      
+       <option  key={lists.value} value={lists.cat}>{lists.cat}</option>
+           )
+    }):""}
+
+</select> */}
+         
+          <input type="text" name="cat" onChange={this.handlechange} required /><br></br><br></br>
+          
+<input type = "submit" value="upload"  />
+
+
+</form>
+
+
+
+     </div>
+     
+    );
+}
+
+handleClick=(e)=>{
+  e.preventDefault();
+  this.setState({showForm:!this.state.showForm})
+  
+}
+
+openPost=(e)=>{
+  axios.post("http://localhost:8081/timeline/getCategories",this.state).then((response)=>{
+   // console.log("Single Post data ",response.data)
+    this.props.history.push('/singlePost');
+  })
+ 
+}
+
+render(){
+    return(
+        
         <div className="container">
           <div className="content">
             <div className="content_rgt">
-              <div className="rght_btn"> <span className="rght_btn_icon"><img src="images/btn_iconb.png" alt="up" /></span> <span className="btn_sep"><img src="images/btn_sep.png" alt="sep" /></span> <a href="#">Upload Post</a> </div>
-              <div className="rght_btn"> <span className="rght_btn_icon"><img src="images/btn_icona.png" alt="up" /></span> <span className="btn_sep"><img src="images/btn_sep.png" alt="sep" /></span> <a href="#">Invite Friends</a> </div>
+              <div className="rght_btn"> <span className="rght_btn_icon"><img src="images/btn_iconb.png" alt="up" /></span> <span className="btn_sep"><img src="images/btn_sep.png" alt="sep" /></span>
+               <a href="#"  onClick={this.handleClick}>Upload Post</a> </div>
+               
+              <div className="rght_btn"> <span className="rght_btn_icon"><img src="images/btn_icona.png" alt="up" /></span> <span className="btn_sep"><img src="images/btn_sep.png" alt="sep" /></span> 
+              <a href="#">Upload Category</a> </div>
               <div className="rght_cate">
                 <div className="rght_cate_hd" id="rght_cat_bg">Categories</div>
                 <div className="rght_list">
-                  <ul>
-                    <li><a href="#"><span className="list_icon"><img src="images/icon_01.png" alt="up" /></span> CATS</a></li>
-                    <li><a href="#"><span className="list_icon"><img src="images/icon_02.png" alt="up" /></span> Dogs</a></li>
-                    <li><a href="#"><span className="list_icon"><img src="images/icon_03.png" alt="up" /></span> Birds</a></li>
-                    <li><a href="#"><span className="list_icon"><img src="images/icon_04.png" alt="up" /></span> Rabbit</a></li>
-                    <li><a href="#"><span className="list_icon"><img src="images/icon_05.png" alt="up" /></span> Others</a></li>
-                  </ul>
+                  {this.state.Category.length>0 ? this.state.Category.map((cate)=>{
+                    return(
+                
+                        <div className="rght_list">
+                        <ul>
+                        <li><a href="#" style={{color:"black",fontSize:20}}><span className="list_icon"><img style={{width: 50,height: 50}} src= {`http://localhost:8081/${cate.imageupload}`} /></span>{cate.cat}</a></li>
+                         
+                        </ul>
+                      </div>
+                        
+                    )
+                  }) : ""}
                 </div>
               </div>
               <div className="rght_cate">
-                <div className="rght_cate_hd" id="opn_cat_bg">Featured</div>
+              <div className="rght_cate_hd" id="opn_cat_bg">Featured</div>
                 <div className="sub_dwn">
                   <div className="feat_sec">
                     <div className="feat_sec_img"><img src="images/feat_img1.png" alt="image" /></div>
                     <div className="feat_txt">Lorem Ipusum Text</div>
+                    <div className="btm_rgt">
+                      <div className="btm_arc">Cats</div>
+                    </div>
                   </div>
                   <div className="feat_sec">
                     <div className="feat_sec_img"><img src="images/feat_img2.png" alt="image" /></div>
@@ -124,7 +204,7 @@ var NewComponent = React.createClass({
                         <ul>
                           <li>
                             <div className="div_name1">Name :</div>
-                            <div className="div_name2">Stefiney Gibbs</div>
+                            <div className="div_name2"></div>
                           </li>
                           <li>
                             <div className="div_name1">Sex :</div>
@@ -150,6 +230,45 @@ var NewComponent = React.createClass({
                   </div>
                 </div>
               </div>
+              <div>
+                
+                  {this.state.showForm ? this.showForm() : null}
+                   
+                <h1>{this.state.picture.length>0 ? this.state.picture.map((pic)=>{
+                    return(
+                      <div>
+                      <div className="contnt_2">
+                <div className="div_a">
+                  <div className="div_title">User Interface PSD Source files Web Designing for web</div>
+                  <div className="btm_rgt">
+                    <div className="btm_arc">{pic.cat}t</div>
+                  </div>
+                  <div className="div_top">
+          
+                    <div className="div_top_lft"><img src="images/img_6.png" />{pic.email}</div>
+                    <div className="div_top_rgt"><span className="span_date">{new Date().getDate() + "-" + (new Date().getMonth() + 1) + "-" + new Date().getFullYear()}</span><span className="span_time">{new Date().getHours() + ":" + new Date().getMinutes() +"pm" }</span></div>
+                  </div>
+                  </div>
+                  </div>
+                    <Link to={`/myPost/${pic.imageupload}`}><img src={`http://localhost:8081/${pic.imageupload}`} alt={this.state.alt}/> </Link>                  <div className="div_btm">
+                    <div className="btm_list">
+                      <ul>
+                        <li><a href="#"><span className="btn_icon"><img src="images/icon_001.png" alt="share" /></span>Share</a></li>
+                        <li><a href="#"><span className="btn_icon"><img src="images/icon_002.png" alt="share" /></span>Flag</a></li>
+                        <li><a href="#"><span className="btn_icon"><img src="images/icon_003.png" alt="share" /></span>0 Likes</a></li>
+                        <li><a href="#"><span className="btn_icon"><img src="images/icon_004.png" alt="share" /></span>4 Comments</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                        
+                      </div>
+                    )
+                  }):""}</h1>
+                
+                    
+                 
+                    </div>
+                 
               <div className="contnt_2">
                 <div className="div_a">
                   <div className="div_title">User Interface PSD Source files Web Designing for web</div>
@@ -198,23 +317,10 @@ var NewComponent = React.createClass({
               </div>
             </div>
           </div>
-          <div className="clear" />
-        </div>
-        <div className="footr">
-          <div className="footr_lft">
-            <div className="footer_div1">Copyright © Pet-Socail 2014 All Rights Reserved</div>
-            <div className="footer_div2"><a href="#">Privacy Policy </a>| <a href="#"> Terms &amp; Conditions</a></div>
           </div>
-          <div className="footr_rgt">
-            <ul>
-              <li><a href="#"><img src="images/social_1.png" /></a></li>
-              <li><a href="#"><img src="images/social_2.png" /></a></li>
-              <li><a href="#"><img src="images/social_3.png" /></a></li>
-              <li><a href="#"><img src="images/social_4.png" /></a></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    );
-  }
-});
+        
+        
+    )
+}
+}
+export default Timeline;
