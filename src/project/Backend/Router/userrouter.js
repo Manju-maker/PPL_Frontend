@@ -1,115 +1,60 @@
 var express = require("express");
 var router = express.Router();
-var userapi = require("../Api/userapi")
-// var multer  = require('multer')
+var userapi = require("../Api/userapi");
 
-// var storage = multer.diskStorage({
-//     destination: function (req, file, cb) {
-//       cb(null, './uploads')
-//     },
-//     filename: function (req, file, cb) {
-//       cb(null, file.originalname + '-' + Date.now())
-//     }
-//   })
-   
-//   var upload = multer({ storage: storage })
-  
-
-router.get('/',(req,res)=>{
-    res.render('homepage');
-})
-
-router.get('/login',(req,res)=>{
-    res.render('loginForm');
-})
-
-// router.get('/adduser',(req,res)=>{
-//     res.render('register');
-// })
-
-router.post('/adduser', async function(req,res){
-    try{
-        //console.log("req.body",req.body)
-    var result = await userapi.Adduser(req.body);
-    res.send(result);
-    }
-    catch(err){
+router.post("/adduser", async function(req, res) {
+    try {
+        var result = await userapi.Adduser(req.body);
+        res.send(result);
+    } catch (err) {
         res.send(err);
     }
-})
+});
 
-
-router.get('/verify/:email', async function(req, res){
-
-    try{
-        //console.log(req.params.email)
-    var result = await userapi.verifyUser(req.params.email);
-    res.send(result);
-    }
-
-    catch(err){
+router.get("/verify/:email", async function(req, res) {
+    try {
+        var result = await userapi.verifyUser(req.params.email);
+        res.send(result);
+    } catch (err) {
         res.send(err);
     }
+});
 
-})
-
-
-router.post('/login', async function(req, res){
-    try{
-       // console.log("req.body",JSON.stringify(req.body))
+router.post("/login", async function(req, res) {
+    try {
         var result = await userapi.loginuser(req.body);
         res.send(result);
-    }
-    catch(err){
+    } catch (err) {
         res.send(err);
     }
- })
+});
 
- router.get('/verifyLink/:email', async function(req, res){
-
-    try{
-        //console.log(req.params.email)
-    var result = await userapi.verifyPassLink(req.params.email);
-    res.send(result);
-    }
-
-    catch(err){
+router.get("/verifyLink/:email", async function(req, res) {
+    try {
+        var result = await userapi.verifyPassLink(req.params.email);
+        res.send(result);
+    } catch (err) {
         res.send(err);
     }
+});
 
-})
-
-router.post('/forgotPass', async function(req,res){
-    try{
-        console.log("forgot",req.body)
-var result = await userapi.forgot(req.body);
-console.log("Router result",result)
-res.send(result);
-    }
-    catch(err){
+router.post("/forgotPass", async function(req, res) {
+    try {
+        var result = await userapi.forgot(req.body);
+        res.send(result);
+    } catch (err) {
         res.send(err);
     }
-})
+});
 
-router.post('/resetPass', async function(req,res){
-    try{
-        console.log("Req.body",req.body)
+router.post("/resetPass", async function(req, res) {
+    try {
+        console.log("Password console", req.body);
         var result = await userapi.resetPassword(req.body);
         res.send(result);
-    }
-    catch(err){
+    } catch (err) {
         res.send(err);
     }
-})
-
+});
 
 module.exports = router;
-
-
-
-
-
-
-
-
-
