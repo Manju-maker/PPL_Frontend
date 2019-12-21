@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import React from "react";
 import moment from "moment";
+import { includes, orderBy, uniqBy, filter } from "lodash";
 import callApi from "./Utilities/callApi";
 
 class Index extends React.Component {
@@ -9,75 +10,109 @@ class Index extends React.Component {
         this.state = {
             email: "",
             imageupload: "",
-            userId: "",
             cat: "",
-            toggle: false,
-            mostCommented: [],
             picture: [],
+            filteredPost: [],
             Category: [],
-            date: new Date(),
-            bool: false,
             showForm: false,
-            userToken: ""
+            query: {
+                fields: {
+                    _id: 1,
+                    comment: 1,
+                    likes: 1,
+                    email: 1,
+                    cat: 1,
+                    imageupload: 1,
+                    path: 1,
+                    userId: 1,
+                    uploadTime: 1
+                },
+                filter: {},
+                option: { skip: 0, limit: 0, sort: { uploadTime: -1 } }
+            }
         };
     }
-
-    componentWillMount() {
-        let userTokens = JSON.parse(localStorage.getItem("tokenID"));
-        this.setState({ userToken: userTokens[1].token }, () => {});
-        if (localStorage.getItem("tokenID")) {
-            this.props.history.push("/index");
+    componentDidMount() {
+        if (localStorage.getItem("tokenID") != null) {
+            this.userToken = JSON.parse(
+                localStorage.getItem("tokenID")
+            )[1].token;
+            let headers = {
+                Accept: "application/json",
+                Authorization: `Bearer ${this.userToken}`
+            };
+            console.log(headers);
+            callApi(
+                "get",
+                `timeline/getPostData?params=${encodeURI(
+                    JSON.stringify(this.state.query)
+                )}`,
+                {},
+                headers
+            )
+                .then(response => {
+                    this.setState(
+                        {
+                            Category: response.data,
+                            picture: response.data,
+                            filteredPost: response.data
+                        },
+                        () => {
+                            this.setState({
+                                Category: uniqBy(this.state.Category, "cat")
+                            });
+                        }
+                    );
+                })
+                .catch(err => {
+                    console.log("Err--", err);
+                    if (err.response.status === 401) {
+                        localStorage.removeItem("tokenID");
+                        this.props.history.push("/login");
+                    }
+                });
         } else {
             this.props.history.push("/login");
         }
     }
-    componentDidMount() {
-        let headers = {
-            Accept: "application/json",
-            Authorization: `Bearer ${this.state.userToken}`
-        };
-
-        callApi("post", "timeline/getAllPost", this.state, headers)
-            .then(response => {
-                this.setState({ Category: response.data });
-                this.setState({ picture: response.data });
-            })
-            .catch(err => {
-                if (err.response.status === 401) {
-                    localStorage.removeItem("tokenID");
-                    this.props.history.push("/login");
-                }
+    handleChange = e => {
+        let { value, name, files } = e.target;
+        if (files != null) {
+            this.setState({ imageupload: files[0] });
+        } else {
+            this.setState({
+                [name]: value
             });
-    }
-    handlechange = e => {
-        const value = e.target.value;
-        const name = e.target.name;
-        this.setState({
-            [name]: value
-        });
+        }
     };
-    handleFile = e => {
-        this.setState({ imageupload: e.target.files[0] }, () => {});
-    };
-
     submitform = e => {
         e.preventDefault();
         let id = JSON.parse(localStorage.getItem("tokenID"))[0]._id;
         let formData = new FormData();
         formData.append("email", this.state.email);
         formData.append("userId", id);
-        formData.append("cat", this.state.cat);
+        formData.append("cat", this.state.cat.toUpperCase());
         formData.append("imageupload", this.state.imageupload);
 
         let headers = {
             Accept: "application/json",
-            Authorization: `Bearer ${this.state.userToken}`
+            Authorization: `Bearer ${this.userToken}`
         };
 
-        callApi("post", "timeline/publicImageUpload", formData, headers)
+        callApi("post", "timeline/imageUpload", formData, headers)
             .then(response => {
-                this.setState({ picture: response.data });
-                //console.log("Picture--", this.state.picture);
+                this.setState(
+                    {
+                        picture: response.data,
+                        Category: response.data,
+                        filteredPost: response.data
+                    },
+                    () => {
+                        this.setState({
+                            Category: uniqBy(this.state.Category, "cat")
+                        });
+                    }
+                );
             })
             .catch(err => {
                 if (err.response.status === 401) {
@@ -95,7 +130,7 @@ class Index extends React.Component {
                     Username:
                     <input
                         type="text"
-                        onChange={this.handlechange}
+                        onChange={this.handleChange}
                         name="email"
                         required
                     />
@@ -104,7 +139,7 @@ class Index extends React.Component {
                     <input
                         type="file"
                         name="imageupload"
-                        onChange={this.handleFile}
+                        onChange={this.handleChange}
                         required
                     />
                     <br></br>
@@ -113,7 +148,7 @@ class Index extends React.Component {
                     <input
                         type="text"
                         name="cat"
-                        onChange={this.handlechange}
+                        onChange={this.handleChange}
                         required
                     />
                     <br></br>
@@ -130,31 +165,24 @@ class Index extends React.Component {
     };
 
     latestFirst = e => {
-        if (this.state.bool === false) {
-            this.setState({ toggle: false });
-            this.setState({ picture: this.state.picture.reverse() });
-        }
-        this.setState({ bool: true });
+        let latestPost = orderBy(this.state.picture, "uploadTime", "desc");
+        this.setState({ filteredPost: latestPost });
     };
 
     oldestFirst = e => {
-        if (this.state.bool === true) {
-            this.setState({ toggle: false });
-            this.setState({ picture: this.state.picture.reverse() });
-        }
-        this.setState({ bool: false });
+        let oldestPost = orderBy(this.state.picture, "uploadTime", "asc");
+        this.setState({ filteredPost: oldestPost });
     };
 
     mostCommented = e => {
         let headers = {
             Accept: "application/json",
-            Authorization: `Bearer ${this.state.userToken}`
+            Authorization: `Bearer ${this.userToken}`
         };
 
-        callApi("post", "timeline/mostCommented", this.state, headers)
+        callApi("get", "timeline/mostCommented", {}, headers)
             .then(response => {
-                this.setState({ toggle: true });
-                this.setState({ mostCommented: response.data });
+                this.setState({ filteredPost: response.data });
             })
             .catch(err => {
                 if (err.response.status === 401) {
@@ -162,6 +190,41 @@ class Index extends React.Component {
                     this.props.history.push("/login");
                 }
             });
+    };
+    clickLike = (id, likes_id, e) => {
+        e.preventDefault();
+        let myData = {
+            userId: JSON.parse(localStorage.getItem("tokenID"))[0]._id,
+            imageId: id
+        };
+        let headers = {
+            Accept: "application/json",
+            Authorization: `Bearer ${this.userToken}`
+        };
+        if (!includes(likes_id, myData.userId)) {
+            callApi(
+                "post",
+                `timeline/Likes?params=${this.state.query}`,
+                myData,
+                headers
+            )
+                .then(response => {
+                    this.setState({ picture: response.data });
+                })
+                .catch(err => {
+                    console.log(err);
+                });
+        }
+    };
+
+    categoryPost = (singleCategory, e) => {
+        console.log("called---", singleCategory);
+        e.preventDefault();
+        var commonCategory = filter(this.state.picture, category => {
+            return category.cat == singleCategory;
+        });
+        console.log("myPost---", commonCategory);
+        this.setState({ filteredPost: commonCategory });
     };
 
     render() {
@@ -198,37 +261,42 @@ class Index extends React.Component {
                                 </div>
                                 <div className="rght_list">
                                     <ul>
-                                        {this.state.Category.length > 0
-                                            ? this.state.Category.map(cate => {
-                                                  return (
-                                                      <div className="rght_list">
-                                                          <ul>
-                                                              <li>
-                                                                  <a
-                                                                      href="#"
-                                                                      style={{
-                                                                          color:
-                                                                              "black",
-                                                                          fontSize: 20
-                                                                      }}
-                                                                  >
-                                                                      <span className="list_icon">
-                                                                          <img
-                                                                              style={{
-                                                                                  width: 50,
-                                                                                  height: 50
-                                                                              }}
-                                                                              src={`http://localhost:8081/${cate.imageupload}`}
-                                                                          />
-                                                                      </span>
-                                                                      {cate.cat}
-                                                                  </a>
-                                                              </li>
-                                                          </ul>
-                                                      </div>
-                                                  );
-                                              })
-                                            : ""}
+                                        {this.state.Category.length > 0 &&
+                                            this.state.Category.map(cat => {
+                                                return (
+                                                    <div className="rght_list">
+                                                        <ul>
+                                                            <li>
+                                                                <a
+                                                                    href="#"
+                                                                    onClick={e => {
+                                                                        this.categoryPost(
+                                                                            cat.cat,
+                                                                            e
+                                                                        );
+                                                                    }}
+                                                                    style={{
+                                                                        color:
+                                                                            "black",
+                                                                        fontSize: 20
+                                                                    }}
+                                                                >
+                                                                    <span className="list_icon">
+                                                                        <img
+                                                                            style={{
+                                                                                width: 50,
+                                                                                height: 50
+                                                                            }}
+                                                                            src={`http://localhost:8081/${cat.imageupload}`}
+                                                                        />
+                                                                    </span>
+                                                                    {cat.cat}
+                                                                </a>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                );
+                                            })}
                                     </ul>
                                 </div>
                             </div>
@@ -365,452 +433,136 @@ class Index extends React.Component {
                             </div>
                             <div>
                                 {this.state.showForm ? this.showForm() : null}
-                                {this.state.toggle === false ? (
-                                    <h1>
-                                        {this.state.picture.length > 0
-                                            ? this.state.picture.map(pic => {
-                                                  return (
-                                                      <div>
-                                                          <div className="contnt_2">
-                                                              <div className="div_a">
-                                                                  <div className="div_title">
-                                                                      User
-                                                                      Interface
-                                                                      PSD Source
-                                                                      files Web
-                                                                      Designing
-                                                                      for web
-                                                                  </div>
-                                                                  <div className="btm_rgt">
-                                                                      <div className="btm_arc">
-                                                                          {
-                                                                              pic.cat
-                                                                          }
-                                                                      </div>
-                                                                  </div>
-                                                                  <div className="div_top">
-                                                                      <div className="div_top_lft">
-                                                                          <img src="/images/img_6.png" />
-                                                                          {
-                                                                              pic.email
-                                                                          }
-                                                                      </div>
-                                                                      <div className="div_top_rgt">
-                                                                          <span className="span_date">
-                                                                              {moment(
-                                                                                  pic.uploadTime
-                                                                              ).format(
-                                                                                  "MMMM Do YYYY"
-                                                                              )}
-                                                                          </span>
-                                                                          <span className="span_time">
-                                                                              {moment(
-                                                                                  pic.uploadTime
-                                                                              ).format(
-                                                                                  "h:mm:ss a"
-                                                                              )}
-                                                                          </span>
-                                                                      </div>
-                                                                  </div>
-                                                              </div>
-                                                          </div>
-                                                          <Link
-                                                              to={`/myPost/${pic._id}`}
-                                                          >
-                                                              <img
-                                                                  style={{
-                                                                      width: 400,
-                                                                      height: 300
-                                                                  }}
-                                                                  src={`http://localhost:8081/${pic.imageupload}`}
-                                                              />
-                                                          </Link>{" "}
-                                                          <div className="div_btm">
-                                                              <div className="btm_list">
-                                                                  <ul>
-                                                                      <li>
-                                                                          <a href="#">
-                                                                              <span className="btn_icon">
-                                                                                  <img
-                                                                                      src="/images/icon_001.png"
-                                                                                      alt="share"
-                                                                                  />
-                                                                              </span>
-                                                                              Share
-                                                                          </a>
-                                                                      </li>
-                                                                      <li>
-                                                                          <a href="#">
-                                                                              <span className="btn_icon">
-                                                                                  <img
-                                                                                      src="/images/icon_002.png"
-                                                                                      alt="share"
-                                                                                  />
-                                                                              </span>
-                                                                              Flag
-                                                                          </a>
-                                                                      </li>
-                                                                      <li>
-                                                                          <a href="#">
-                                                                              <span className="btn_icon">
-                                                                                  <img
-                                                                                      src="/images/icon_003.png"
-                                                                                      alt="share"
-                                                                                  />
-                                                                              </span>
-                                                                              0
-                                                                              Likes
-                                                                          </a>
-                                                                      </li>
-                                                                      <li>
-                                                                          <a href="#">
-                                                                              <span className="btn_icon">
-                                                                                  <img
-                                                                                      src="/images/icon_004.png"
-                                                                                      alt="share"
-                                                                                  />
-                                                                              </span>
-                                                                              {
-                                                                                  pic
-                                                                                      .comment
-                                                                                      .length
-                                                                              }{" "}
-                                                                              Comments
-                                                                          </a>
-                                                                      </li>
-                                                                  </ul>
-                                                              </div>
-                                                          </div>
-                                                      </div>
-                                                  );
-                                              })
-                                            : ""}
-                                    </h1>
-                                ) : (
-                                    <h1>
-                                        {this.state.mostCommented.length > 0
-                                            ? this.state.mostCommented.map(
-                                                  pic => {
-                                                      return (
-                                                          <div>
-                                                              <div className="contnt_2">
-                                                                  <div className="div_a">
-                                                                      <div className="div_title">
-                                                                          User
-                                                                          Interface
-                                                                          PSD
-                                                                          Source
-                                                                          files
-                                                                          Web
-                                                                          Designing
-                                                                          for
-                                                                          web
-                                                                      </div>
-                                                                      <div className="btm_rgt">
-                                                                          <div className="btm_arc">
-                                                                              {
-                                                                                  pic.cat
-                                                                              }
-                                                                          </div>
-                                                                      </div>
-                                                                      <div className="div_top">
-                                                                          <div className="div_top_lft">
-                                                                              <img src="/images/img_6.png" />
-                                                                              {
-                                                                                  pic.email
-                                                                              }
-                                                                          </div>
-                                                                          <div className="div_top_rgt">
-                                                                              <span className="span_date">
-                                                                                  {moment(
-                                                                                      pic.uploadTime
-                                                                                  ).format(
-                                                                                      "MMMM Do YYYY"
-                                                                                  )}
-                                                                              </span>
-                                                                              <span className="span_time">
-                                                                                  {moment(
-                                                                                      pic.uploadTime
-                                                                                  ).format(
-                                                                                      "h:mm:ss a"
-                                                                                  )}
-                                                                              </span>
-                                                                          </div>
-                                                                      </div>
-                                                                  </div>
-                                                              </div>
-                                                              <Link
-                                                                  to={`/myPost/${pic._id}`}
-                                                              >
-                                                                  <img
-                                                                      style={{
-                                                                          width: 400,
-                                                                          height: 300
-                                                                      }}
-                                                                      src={`http://localhost:8081/${pic.imageupload}`}
-                                                                  />
-                                                              </Link>{" "}
-                                                              <div className="div_btm">
-                                                                  <div className="btm_list">
-                                                                      <ul>
-                                                                          <li>
-                                                                              <a href="#">
-                                                                                  <span className="btn_icon">
-                                                                                      <img
-                                                                                          src="/images/icon_001.png"
-                                                                                          alt="share"
-                                                                                      />
-                                                                                  </span>
-                                                                                  Share
-                                                                              </a>
-                                                                          </li>
-                                                                          <li>
-                                                                              <a href="#">
-                                                                                  <span className="btn_icon">
-                                                                                      <img
-                                                                                          src="/images/icon_002.png"
-                                                                                          alt="share"
-                                                                                      />
-                                                                                  </span>
-                                                                                  Flag
-                                                                              </a>
-                                                                          </li>
-                                                                          <li>
-                                                                              <a href="#">
-                                                                                  <span className="btn_icon">
-                                                                                      <img
-                                                                                          src="/images/icon_003.png"
-                                                                                          alt="share"
-                                                                                      />
-                                                                                  </span>
-
-                                                                                  0
-                                                                                  Likes
-                                                                              </a>
-                                                                          </li>
-                                                                          <li>
-                                                                              <a href="#">
-                                                                                  <span className="btn_icon">
-                                                                                      <img
-                                                                                          src="/images/icon_004.png"
-                                                                                          alt="share"
-                                                                                      />
-                                                                                  </span>
-                                                                                  {
-                                                                                      pic
-                                                                                          .comment
-                                                                                          .length
-                                                                                  }{" "}
-                                                                                  Comments
-                                                                              </a>
-                                                                          </li>
-                                                                      </ul>
-                                                                  </div>
-                                                              </div>
-                                                          </div>
-                                                      );
-                                                  }
-                                              )
-                                            : ""}
-                                    </h1>
-                                )}
-                            </div>
-
-                            <div className="contnt_2">
-                                <div className="div_a">
-                                    <div className="div_title">
-                                        User Interface PSD Source files Web
-                                        Designing for web
-                                    </div>
-                                    <div className="btm_rgt">
-                                        <div className="btm_arc">Cats</div>
-                                    </div>
-                                    <div className="div_top">
-                                        <div className="div_top_lft">
-                                            <img src="/images/img_6.png" />
-                                            Steave Waugh
-                                        </div>
-                                        <div className="div_top_rgt">
-                                            <span className="span_date">
-                                                02 Jan 2014
-                                            </span>
-                                            <span className="span_time">
-                                                11:15am
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="div_image">
-                                        <img
-                                            src="/images/lft_img.png"
-                                            alt="pet"
-                                        />
-                                    </div>
-                                    <div className="div_btm">
-                                        <div className="btm_list">
-                                            <ul>
-                                                <li>
-                                                    <a href="#">
-                                                        <span className="btn_icon">
-                                                            <img
-                                                                src="/images/icon_001.png"
-                                                                alt="share"
-                                                            />
-                                                        </span>
-                                                        Share
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a href="#">
-                                                        <span className="btn_icon">
-                                                            <img
-                                                                src="/images/icon_002.png"
-                                                                alt="share"
-                                                            />
-                                                        </span>
-                                                        Flag
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a href="#">
-                                                        <span className="btn_icon">
-                                                            <img
-                                                                src="/images/icon_004.png"
-                                                                alt="share"
-                                                            />
-                                                        </span>
-                                                        Comments
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a href="#">
-                                                        <span className="btn_icon">
-                                                            <img
-                                                                src="/images/icon_003.png"
-                                                                alt="share"
-                                                            />
-                                                        </span>
-                                                        Likes
-                                                    </a>
-                                                </li>
-                                                <div
-                                                    className="like_count"
-                                                    style={{
-                                                        marginRight: "10px"
-                                                    }}
-                                                ></div>
-                                                <li>
-                                                    <a href="#">
-                                                        <span className="btn_icon">
-                                                            <img
-                                                                src="/images/icon_003.png"
-                                                                alt="share"
-                                                            />
-                                                        </span>
-                                                        Unlike
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="contnt_2">
-                                <div className="div_a">
-                                    <div className="div_title">
-                                        User Interface PSD Source files Web
-                                        Designing for web
-                                    </div>
-                                    <div className="btm_rgt">
-                                        <div className="btm_arc">Dogs</div>
-                                    </div>
-                                    <div className="div_top">
-                                        <div className="div_top_lft">
-                                            <img src="/images/img_6.png" />
-                                            Steave Waugh
-                                        </div>
-                                        <div className="div_top_rgt">
-                                            <span className="span_date">
-                                                02 Jan 2014
-                                            </span>
-                                            <span className="span_time">
-                                                11:15am
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="div_image">
-                                        <img
-                                            src="/images/lft_img1.png"
-                                            alt="pet"
-                                        />
-                                    </div>
-                                    <div className="div_btm">
-                                        <div className="btm_list">
-                                            <ul>
-                                                <li>
-                                                    <a href="#">
-                                                        <span className="btn_icon">
-                                                            <img
-                                                                src="/images/icon_001.png"
-                                                                alt="share"
-                                                            />
-                                                        </span>
-                                                        Share
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a href="#">
-                                                        <span className="btn_icon">
-                                                            <img
-                                                                src="/images/icon_002.png"
-                                                                alt="share"
-                                                            />
-                                                        </span>
-                                                        Flag
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a href="#">
-                                                        <span className="btn_icon">
-                                                            <img
-                                                                src="/images/icon_004.png"
-                                                                alt="share"
-                                                            />
-                                                        </span>
-                                                        Comments
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a href="#">
-                                                        <span className="btn_icon">
-                                                            <img
-                                                                src="/images/icon_003.png"
-                                                                alt="share"
-                                                            />
-                                                        </span>
-                                                        Likes
-                                                    </a>
-                                                </li>
-                                                <div
-                                                    className="like_count"
-                                                    style={{
-                                                        marginRight: "10px"
-                                                    }}
-                                                ></div>
-                                                <li>
-                                                    <a href="#">
-                                                        <span className="btn_icon">
-                                                            <img
-                                                                src="/images/icon_003.png"
-                                                                alt="share"
-                                                            />
-                                                        </span>
-                                                        Unlike
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
+                                <h1>
+                                    {this.state.filteredPost.length > 0 &&
+                                        this.state.filteredPost.map(pic => {
+                                            return (
+                                                <div>
+                                                    <div className="contnt_2">
+                                                        <div className="div_a">
+                                                            <div className="div_title">
+                                                                User Interface
+                                                                PSD Source files
+                                                                Web Designing
+                                                                for web
+                                                            </div>
+                                                            <div className="btm_rgt">
+                                                                <div className="btm_arc">
+                                                                    {pic.cat}
+                                                                </div>
+                                                            </div>
+                                                            <div className="div_top">
+                                                                <div className="div_top_lft">
+                                                                    <img src="/images/img_6.png" />
+                                                                    {pic.email}
+                                                                </div>
+                                                                <div className="div_top_rgt">
+                                                                    <span className="span_date">
+                                                                        {moment(
+                                                                            pic.uploadTime
+                                                                        ).format(
+                                                                            "MMMM Do YYYY"
+                                                                        )}
+                                                                    </span>
+                                                                    <span className="span_time">
+                                                                        {moment(
+                                                                            pic.uploadTime
+                                                                        ).format(
+                                                                            "h:mm:ss a"
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <Link
+                                                        to={`/myPost/${pic._id}`}
+                                                    >
+                                                        <img
+                                                            style={{
+                                                                width: 400,
+                                                                height: 300
+                                                            }}
+                                                            src={`http://localhost:8081/${pic.imageupload}`}
+                                                        />
+                                                    </Link>{" "}
+                                                    <div className="div_btm">
+                                                        <div className="btm_list">
+                                                            <ul>
+                                                                <li>
+                                                                    <a href="#">
+                                                                        <span className="btn_icon">
+                                                                            <img
+                                                                                src="/images/icon_001.png"
+                                                                                alt="share"
+                                                                            />
+                                                                        </span>
+                                                                        Share
+                                                                    </a>
+                                                                </li>
+                                                                <li>
+                                                                    <a href="#">
+                                                                        <span className="btn_icon">
+                                                                            <img
+                                                                                src="/images/icon_002.png"
+                                                                                alt="share"
+                                                                            />
+                                                                        </span>
+                                                                        Flag
+                                                                    </a>
+                                                                </li>
+                                                                <li>
+                                                                    <a
+                                                                        href="#"
+                                                                        onClick={e =>
+                                                                            this.clickLike(
+                                                                                pic._id,
+                                                                                pic.likes,
+                                                                                e
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <span className="btn_icon">
+                                                                            <img
+                                                                                src="/images/icon_003.png"
+                                                                                alt="share"
+                                                                            />
+                                                                        </span>
+                                                                        {
+                                                                            pic
+                                                                                .likes
+                                                                                .length
+                                                                        }{" "}
+                                                                        Like
+                                                                    </a>
+                                                                </li>
+                                                                <li>
+                                                                    <Link
+                                                                        to={`/myPost/${pic._id}`}
+                                                                    >
+                                                                        <a href="#">
+                                                                            <span className="btn_icon">
+                                                                                <img
+                                                                                    src="/images/icon_004.png"
+                                                                                    alt="share"
+                                                                                />
+                                                                            </span>
+                                                                            {
+                                                                                pic
+                                                                                    .comment
+                                                                                    .length
+                                                                            }{" "}
+                                                                            Comments
+                                                                        </a>
+                                                                    </Link>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                </h1>
                             </div>
                         </div>
                     </div>

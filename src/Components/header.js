@@ -12,11 +12,8 @@ class Header extends React.Component {
 
     Logout = e => {
         e.preventDefault();
-
-        console.log("tokenID--", localStorage.getItem("tokenID"));
         localStorage.removeItem("tokenID");
 
-        console.log("TokenID removed");
         this.props.history.push("/login");
 
         this.setState({ showMenu: false });

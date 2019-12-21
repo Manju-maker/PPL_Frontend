@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { includes, uniqBy, filter } from "lodash";
 import React from "react";
 import moment from "moment";
 import callApi from "./Utilities/callApi";
@@ -10,83 +11,119 @@ class Timeline extends React.Component {
             imageupload: "",
             userId: "",
             picture: [],
+            filteredPost: [],
             cat: "",
             Category: [],
-            showForm: false,
-            date: new Date()
+            showForm: false
         };
-        console.log("Props=======", this.props);
     }
 
-    componentWillMount() {
-        if (localStorage.getItem("tokenID")) {
-            let userTokens = JSON.parse(localStorage.getItem("tokenID"));
-            this.setState({ userToken: userTokens[1].token }, () => {});
-            this.props.history.push("/timeline");
+    componentDidMount() {
+        if (localStorage.getItem("tokenID") != null) {
+            this.userToken = JSON.parse(
+                localStorage.getItem("tokenID")
+            )[1].token;
+            let userId = JSON.parse(localStorage.getItem("tokenID"))[0]._id;
+            let headers = {
+                Accept: "application/json",
+                Authorization: `Bearer ${this.userToken}`
+            };
+            this.query = {
+                fields: {
+                    _id: 1,
+                    comment: 1,
+                    likes: 1,
+                    email: 1,
+                    cat: 1,
+                    imageupload: 1,
+                    path: 1,
+                    userId: 1,
+                    uploadTime: 1
+                },
+                filter: {
+                    userId
+                },
+                option: { skip: 0, limit: 0, sort: { uploadTime: -1 } }
+            };
+            callApi(
+                "get",
+                `timeline/getPostData?params=${JSON.stringify(this.query)}`,
+                {},
+                headers
+            )
+                .then(response => {
+                    this.setState(
+                        {
+                            Category: response.data,
+                            picture: response.data,
+                            filteredPost: response.data
+                        },
+                        () => {
+                            this.setState({
+                                Category: uniqBy(this.state.Category, "cat")
+                            });
+                        }
+                    );
+                })
+                .catch(err => {
+                    console.log("err", err);
+                    if (err.response.status === 401) {
+                        localStorage.removeItem("tokenID");
+                        this.props.history.push("/login");
+                    }
+                });
         } else {
             this.props.history.push("/login");
         }
     }
 
-    componentDidMount() {
-        let Id = {
-            userID: JSON.parse(localStorage.getItem("tokenID"))[0]._id
-        };
-
-        let headers = {
-            Accept: "application/json",
-            Authorization: `Bearer ${this.state.userToken}`
-        };
-
-        callApi("post", "timeline/getCategories", Id, headers)
-            .then(response => {
-                this.setState({
-                    Category: response.data,
-                    picture: response.data
-                });
-            })
-            .catch(err => {
-                if (err.response.status === 401) {
-                    localStorage.removeItem("tokenID");
-                    this.props.history.push("/login");
-                }
+    handleChange = e => {
+        let { value, name, files } = e.target;
+        if (files != null) {
+            this.setState({ imageupload: files[0] });
+        } else {
+            this.setState({
+                [name]: value
             });
-    }
-
-    handlechange = e => {
-        const value = e.target.value;
-        const name = e.target.name;
-        this.setState({
-            [name]: value
-        });
-    };
-    handleFile = e => {
-        this.setState({ imageupload: e.target.files[0] }, () => {});
+        }
     };
 
     submitform = e => {
         e.preventDefault();
         let id = JSON.parse(localStorage.getItem("tokenID"))[0]._id;
+        let filter = { userId: id };
+
         let formData = new FormData();
         formData.append("email", this.state.email);
         formData.append("userId", id);
-        formData.append("cat", this.state.cat);
+        formData.append("cat", this.state.cat.toUpperCase());
         formData.append("imageupload", this.state.imageupload);
+        formData.append("filter", JSON.stringify(filter));
 
         let headers = {
             Accept: "application/json",
-            Authorization: `Bearer ${this.state.userToken}`
+            Authorization: `Bearer ${this.userToken}`
         };
 
-        callApi("post", "timeline/imageupload", formData, headers)
+        callApi("post", "timeline/imageUpload", formData, headers)
             .then(response => {
-                const result = response.data;
-                this.setState({ picture: result });
-                this.setState({ Category: response.data });
+                this.setState(
+                    {
+                        picture: response.data,
+                        filteredPost: response.data,
+                        Category: response.data
+                    },
+                    () => {
+                        this.setState({
+                            Category: uniqBy(this.state.Category, "cat")
+                        });
+                    }
+                );
             })
             .catch(err => {
-                localStorage.removeItem("tokenID");
-                this.props.history.push("/login");
+                console.log("err----", err);
+                // localStorage.removeItem("tokenID");
+                // this.props.history.push("/login");
             });
         this.setState({ showForm: !this.state.showForm });
     };
@@ -98,7 +135,7 @@ class Timeline extends React.Component {
                     Username:
                     <input
                         type="text"
-                        onChange={this.handlechange}
+                        onChange={this.handleChange}
                         name="email"
                         required
                     />
@@ -107,7 +144,7 @@ class Timeline extends React.Component {
                     <input
                         type="file"
                         name="imageupload"
-                        onChange={this.handleFile}
+                        onChange={this.handleChange}
                         required
                     />{" "}
                     <br></br>
@@ -116,7 +153,7 @@ class Timeline extends React.Component {
                     <input
                         type="text"
                         name="cat"
-                        onChange={this.handlechange}
+                        onChange={this.handleChange}
                         required
                     />
                     <br></br>
@@ -132,22 +169,37 @@ class Timeline extends React.Component {
         this.setState({ showForm: !this.state.showForm });
     };
 
-    openPost = e => {
+    clickLike = (id, likes_id, e) => {
+        console.log("e---", e);
+        e.preventDefault();
+        let myData = {
+            userId: JSON.parse(localStorage.getItem("tokenID"))[0]._id,
+            imageId: id,
+            filter: { _id: JSON.parse(localStorage.getItem("tokenID"))[0]._id }
+        };
         let headers = {
             Accept: "application/json",
-            Authorization: `Bearer ${this.state.userToken}`
+            Authorization: `Bearer ${this.userToken}`
         };
+        if (!includes(likes_id, myData.userId)) {
+            callApi("post", "timeline/Likes", myData, headers)
+                .then(response => {
+                    this.setState({ picture: response.data });
+                })
+                .catch(err => {
+                    console.log(err);
+                });
+        }
+    };
 
-        callApi("post", "timeline/getCategories", this.state, headers)
-            .then(response => {
-                this.props.history.push("/singlePost");
-            })
-            .catch(err => {
-                if (err.response.status === 401) {
-                    localStorage.removeItem("tokenID");
-                    this.props.history.push("/login");
-                }
-            });
+    categoryPost = (singleCategory, e) => {
+        console.log("called---", singleCategory);
+        e.preventDefault();
+        var commonCategory = filter(this.state.picture, category => {
+            return category.cat == singleCategory;
+        });
+        console.log("myPost---", commonCategory);
+        this.setState({ filteredPost: commonCategory });
     };
 
     render() {
@@ -191,6 +243,12 @@ class Timeline extends React.Component {
                                                       <li>
                                                           <a
                                                               href="#"
+                                                              onClick={e =>
+                                                                  this.categoryPost(
+                                                                      cate.cat,
+                                                                      e
+                                                                  )
+                                                              }
                                                               style={{
                                                                   color:
                                                                       "black",
@@ -362,8 +420,8 @@ class Timeline extends React.Component {
                             {this.state.showForm ? this.showForm() : null}
 
                             <h1>
-                                {this.state.picture.length > 0
-                                    ? this.state.picture.map(pic => {
+                                {this.state.filteredPost.length > 0
+                                    ? this.state.filteredPost.map(pic => {
                                           return (
                                               <div>
                                                   <div className="contnt_2">
@@ -439,31 +497,49 @@ class Timeline extends React.Component {
                                                                   </a>
                                                               </li>
                                                               <li>
-                                                                  <a href="#">
+                                                                  <a
+                                                                      href="#"
+                                                                      onClick={e =>
+                                                                          this.clickLike(
+                                                                              pic._id,
+                                                                              pic.likes,
+                                                                              e
+                                                                          )
+                                                                      }
+                                                                  >
                                                                       <span className="btn_icon">
                                                                           <img
                                                                               src="/images/icon_003.png"
                                                                               alt="share"
                                                                           />
                                                                       </span>
-                                                                      0 Likes
+                                                                      {
+                                                                          pic
+                                                                              .likes
+                                                                              .length
+                                                                      }{" "}
+                                                                      Likes
                                                                   </a>
                                                               </li>
                                                               <li>
-                                                                  <a href="#">
-                                                                      <span className="btn_icon">
-                                                                          <img
-                                                                              src="/images/icon_004.png"
-                                                                              alt="share"
-                                                                          />
-                                                                      </span>
-                                                                      {
-                                                                          pic
-                                                                              .comment
-                                                                              .length
-                                                                      }{" "}
-                                                                      Comments
-                                                                  </a>
+                                                                  <Link
+                                                                      to={`/myPost/${pic._id}`}
+                                                                  >
+                                                                      <a href="#">
+                                                                          <span className="btn_icon">
+                                                                              <img
+                                                                                  src="/images/icon_004.png"
+                                                                                  alt="share"
+                                                                              />
+                                                                          </span>
+                                                                          {
+                                                                              pic
+                                                                                  .comment
+                                                                                  .length
+                                                                          }{" "}
+                                                                          Comments
+                                                                      </a>
+                                                                  </Link>
                                                               </li>
                                                           </ul>
                                                       </div>
@@ -473,163 +549,6 @@ class Timeline extends React.Component {
                                       })
                                     : ""}
                             </h1>
-                        </div>
-
-                        <div className="contnt_2">
-                            <div className="div_a">
-                                <div className="div_title">
-                                    User Interface PSD Source files Web
-                                    Designing for web
-                                </div>
-                                <div className="btm_rgt">
-                                    <div className="btm_arc">Cats</div>
-                                </div>
-                                <div className="div_top">
-                                    <div className="div_top_lft">
-                                        <img src="images/img_6.png" />
-                                        Steave Waugh
-                                    </div>
-                                    <div className="div_top_rgt">
-                                        <span className="span_date">
-                                            02 Jan 2014
-                                        </span>
-                                        <span className="span_time">
-                                            11:15am
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="div_image">
-                                    <img src="images/lft_img.png" alt="pet" />
-                                </div>
-                                <div className="div_btm">
-                                    <div className="btm_list">
-                                        <ul>
-                                            <li>
-                                                <a href="#">
-                                                    <span className="btn_icon">
-                                                        <img
-                                                            src="images/icon_001.png"
-                                                            alt="share"
-                                                        />
-                                                    </span>
-                                                    Share
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="#">
-                                                    <span className="btn_icon">
-                                                        <img
-                                                            src="images/icon_002.png"
-                                                            alt="share"
-                                                        />
-                                                    </span>
-                                                    Flag
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="#">
-                                                    <span className="btn_icon">
-                                                        <img
-                                                            src="images/icon_003.png"
-                                                            alt="share"
-                                                        />
-                                                    </span>
-                                                    0 Likes
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="#">
-                                                    <span className="btn_icon">
-                                                        <img
-                                                            src="images/icon_004.png"
-                                                            alt="share"
-                                                        />
-                                                    </span>
-                                                    4 Comments
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="contnt_2">
-                            <div className="div_a">
-                                <div className="div_title">
-                                    User Interface PSD Source files Web
-                                    Designing for web
-                                </div>
-                                <div className="btm_rgt">
-                                    <div className="btm_arc">Dogs</div>
-                                </div>
-                                <div className="div_top">
-                                    <div className="div_top_lft">
-                                        <img src="images/img_6.png" />
-                                        Steave Waugh
-                                    </div>
-                                    <div className="div_top_rgt">
-                                        <span className="span_date">
-                                            02 Jan 2014
-                                        </span>
-                                        <span className="span_time">
-                                            11:15am
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="div_image">
-                                    <img src="images/lft_img1.png" alt="pet" />
-                                </div>
-                                <div className="div_btm">
-                                    <div className="btm_list">
-                                        <ul>
-                                            <li>
-                                                <a href="#">
-                                                    <span className="btn_icon">
-                                                        <img
-                                                            src="images/icon_001.png"
-                                                            alt="share"
-                                                        />
-                                                    </span>
-                                                    Share
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="#">
-                                                    <span className="btn_icon">
-                                                        <img
-                                                            src="images/icon_002.png"
-                                                            alt="share"
-                                                        />
-                                                    </span>
-                                                    Flag
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="#">
-                                                    <span className="btn_icon">
-                                                        <img
-                                                            src="images/icon_003.png"
-                                                            alt="share"
-                                                        />
-                                                    </span>
-                                                    0 Likes
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="#">
-                                                    <span className="btn_icon">
-                                                        <img
-                                                            src="images/icon_004.png"
-                                                            alt="share"
-                                                        />
-                                                    </span>
-                                                    4 Comments
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

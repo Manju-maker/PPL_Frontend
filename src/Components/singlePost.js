@@ -8,7 +8,6 @@ class SinglePost extends React.Component {
         super(props);
 
         this.state = {
-            id: this.props.match.params.picname,
             noOfComment: "",
             cat: "",
             Category: [],
@@ -17,49 +16,72 @@ class SinglePost extends React.Component {
             imageupload: "",
             username: "",
             email: "",
-            userToken: ""
+            like: [],
+
+            query: {
+                fields: {
+                    _id: 1,
+                    comment: 1,
+                    likes: 1,
+                    email: 1,
+                    cat: 1,
+                    imageupload: 1,
+                    path: 1,
+                    userId: 1,
+                    uploadTime: 1
+                },
+                filter: { _id: this.props.match.params.picname },
+                option: { skip: 0, limit: 0, sort: { uploadTime: -1 } }
+            }
         };
-        console.log("Props-----", this.state.id);
     }
 
-    componentWillMount() {
-        if (localStorage.getItem("tokenID")) {
-            let userTokens = JSON.parse(localStorage.getItem("tokenID"));
-            this.setState({ userToken: userTokens[1].token }, () => {});
+    componentDidMount() {
+        if (localStorage.getItem("tokenID") != null) {
+            this.userToken = JSON.parse(
+                localStorage.getItem("tokenID")
+            )[1].token;
+
+            let headers = {
+                Accept: "application/json",
+                Authorization: `Bearer ${this.userToken}`
+            };
+
+            callApi(
+                "get",
+                `timeline/getPostData?params=${JSON.stringify(
+                    this.state.query
+                )}`,
+                {},
+                headers
+            )
+                .then(response => {
+                    this.setState({
+                        Category: response.data,
+                        pictureComment: response.data[0].comment,
+                        like: response.data[0].likes
+                    });
+                    console.log("After axios-----");
+
+                    this.setState({
+                        imageupload: this.state.Category[0].imageupload
+                    });
+                    this.setState({ email: this.state.Category[0].email });
+                    this.setState({
+                        noOfComment: this.state.Category[0].comment.length
+                    });
+                    this.setState({ cat: this.state.Category[0].cat });
+                })
+                .catch(err => {
+                    console.log("errrrr>>>>>>", err);
+                    if (err.response.status === 401) {
+                        localStorage.removeItem("tokenID");
+                        this.props.history.push("/login");
+                    }
+                });
         } else {
             this.props.history.push("/login");
         }
-    }
-    componentDidMount() {
-        let headers = {
-            Accept: "application/json",
-            Authorization: `Bearer ${this.state.userToken}`
-        };
-
-        callApi("post", "timeline/imageData", this.state, headers)
-            .then(response => {
-                console.log("imageData----------", response);
-                this.setState({
-                    Category: response.data,
-                    pictureComment: response.data[0].comment
-                });
-                console.log("After axios-----");
-
-                this.setState({
-                    imageupload: this.state.Category[0].imageupload
-                });
-                this.setState({ email: this.state.Category[0].email });
-                this.setState({
-                    noOfComment: this.state.Category[0].comment.length
-                });
-                this.setState({ cat: this.state.Category[0].cat });
-            })
-            .catch(err => {
-                if (err.response.status === 401) {
-                    localStorage.removeItem("tokenID");
-                    this.props.history.push("/login");
-                }
-            });
     }
 
     handleChange = e => {
@@ -70,25 +92,25 @@ class SinglePost extends React.Component {
         e.preventDefault();
         let headers = {
             Accept: "application/json",
-            Authorization: `Bearer ${this.state.userToken}`
+            Authorization: `Bearer ${this.userToken}`
         };
-        let option = {
-            method: "post",
-            url: "http://localhost:8081/timeline/uploadComment",
-            data: this.state,
-            headers
-        };
-        callApi("post", "timeline/uploadComment", this.state, headers)
-            .then(response => {
-                console.log("comment====", response.data.email);
 
+        callApi(
+            "post",
+            `timeline/uploadComment?params=${JSON.stringify(this.state.query)}`,
+            this.state,
+            headers
+        )
+            .then(response => {
+                console.log("res--", response.data[0].comment.length);
                 this.setState({
-                    pictureComment: response.data.comment,
-                    username: response.data.email,
-                    noOfComment: response.data.comment.length
+                    pictureComment: response.data[0].comment,
+                    username: response.data[0].email,
+                    noOfComment: response.data[0].comment.length
                 });
             })
             .catch(err => {
+                console.log("err---", err);
                 if (err.response.status === 401) {
                     localStorage.removeItem("tokenID");
                     this.props.history.push("/login");
@@ -273,7 +295,8 @@ class SinglePost extends React.Component {
                                                                 alt="share"
                                                             />
                                                         </span>
-                                                        0 Likes
+                                                        {this.state.like.length}{" "}
+                                                        Likes
                                                     </a>
                                                 </li>
                                                 <li>
@@ -345,6 +368,7 @@ class SinglePost extends React.Component {
                                                     type="text"
                                                     placeholder="Enter your Comment"
                                                     className="cmnt_bx1"
+                                                    required
                                                 />
                                                 <input
                                                     type="Submit"
