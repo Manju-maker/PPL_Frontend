@@ -7,6 +7,7 @@ import ForgotPassword from "./forgotPassword";
 import Timeline from "./timeline";
 import Index from "./index";
 import SinglePost from "./singlePost";
+import ResetPassword from "./resetPassword";
 //import Upload from './upload';
 
 class Main extends React.Component {
@@ -23,6 +24,7 @@ class Main extends React.Component {
                     <Route path="/timeline" component={Timeline} />
                     <Route path="/singlePost" component={SinglePost} />
                     <Route path="/index" component={Index} />
+                    <Route path="/reset:params" component={ResetPassword} />
                     <Route
                         exact
                         path="/myPost/:picname"

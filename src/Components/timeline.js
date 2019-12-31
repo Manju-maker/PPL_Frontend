@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { includes, uniqBy, filter } from "lodash";
 import React from "react";
+import $ from "jquery";
 import moment from "moment";
 import callApi from "./Utilities/callApi";
 class Timeline extends React.Component {
@@ -14,7 +15,13 @@ class Timeline extends React.Component {
             filteredPost: [],
             cat: "",
             Category: [],
-            showForm: false
+            showForm: false,
+            count: 0,
+            query: {
+                fields: {},
+                filter: {},
+                option: { skip: 0, limit: 2, sort: { uploadTime: -1 } }
+            }
         };
     }
 
@@ -23,59 +30,84 @@ class Timeline extends React.Component {
             this.userToken = JSON.parse(
                 localStorage.getItem("tokenID")
             )[1].token;
-            let userId = JSON.parse(localStorage.getItem("tokenID"))[0]._id;
+            this.userId = JSON.parse(localStorage.getItem("tokenID"))[0]._id;
             let headers = {
                 Accept: "application/json",
                 Authorization: `Bearer ${this.userToken}`
             };
-            this.query = {
-                fields: {
-                    _id: 1,
-                    comment: 1,
-                    likes: 1,
-                    email: 1,
-                    cat: 1,
-                    imageupload: 1,
-                    path: 1,
-                    userId: 1,
-                    uploadTime: 1
-                },
-                filter: {
-                    userId
-                },
-                option: { skip: 0, limit: 0, sort: { uploadTime: -1 } }
-            };
-            callApi(
-                "get",
-                `timeline/getPostData?params=${JSON.stringify(this.query)}`,
-                {},
-                headers
-            )
-                .then(response => {
-                    this.setState(
-                        {
-                            Category: response.data,
-                            picture: response.data,
-                            filteredPost: response.data
-                        },
-                        () => {
-                            this.setState({
-                                Category: uniqBy(this.state.Category, "cat")
-                            });
-                        }
-                    );
-                })
-                .catch(err => {
-                    console.log("err", err);
-                    if (err.response.status === 401) {
-                        localStorage.removeItem("tokenID");
-                        this.props.history.push("/login");
-                    }
-                });
+            callApi("get", "timeline/count", {}, headers).then(response => {
+                console.log("count------", response.data.count);
+                this.setState({ count: response.data.count });
+                console.log("count------", this.state.count);
+                this.getAllPosts();
+            });
+
+            $(window).scroll(this.scrollPaging);
         } else {
             this.props.history.push("/login");
         }
     }
+    componentWillUnmount() {
+        $(window).unbind("scroll");
+    }
+
+    scrollPaging = () => {
+        const windowScrollTop = $(window).scrollTop();
+        const windowHeight = $(window).height();
+        const documentHeight = $(document).height();
+        const scrollHeight = windowHeight + windowScrollTop;
+        const fetchNewDataHeight = 0;
+        if (scrollHeight + fetchNewDataHeight > documentHeight) {
+            if (
+                this.state.query.option.skip + this.state.query.option.limit <
+                this.state.count
+            ) {
+                this.state.query.option.skip += this.state.query.option.limit;
+                this.getAllPosts();
+                console.log("Scrolled");
+            }
+        }
+    };
+
+    getAllPosts = () => {
+        let headers = {
+            Accept: "application/json",
+            Authorization: `Bearer ${this.userToken}`
+        };
+        this.state.query.filter = {
+            ...this.state.query.filter,
+            userId: this.userId
+        };
+        callApi(
+            "get",
+            `timeline/getPostData?params=${JSON.stringify(this.state.query)}`,
+            {},
+            headers
+        )
+            .then(response => {
+                this.setState(
+                    {
+                        Category: this.state.Category.concat(response.data),
+                        picture: this.state.picture.concat(response.data),
+                        filteredPost: this.state.filteredPost.concat(
+                            response.data
+                        )
+                    },
+                    () => {
+                        this.setState({
+                            Category: uniqBy(this.state.Category, "cat")
+                        });
+                    }
+                );
+            })
+            .catch(err => {
+                console.log("err", err);
+                if (err.response.status === 401) {
+                    localStorage.removeItem("tokenID");
+                    this.props.history.push("/login");
+                }
+            });
+    };
 
     handleChange = e => {
         let { value, name, files } = e.target;

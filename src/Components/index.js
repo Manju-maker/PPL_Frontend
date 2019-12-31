@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
+import $ from "jquery";
 import React from "react";
 import moment from "moment";
-import { includes, orderBy, uniqBy, filter } from "lodash";
+import { includes, orderBy, uniqBy, filter, sort } from "lodash";
 import callApi from "./Utilities/callApi";
 
 class Index extends React.Component {
@@ -15,20 +16,11 @@ class Index extends React.Component {
             filteredPost: [],
             Category: [],
             showForm: false,
+            count: 0,
             query: {
-                fields: {
-                    _id: 1,
-                    comment: 1,
-                    likes: 1,
-                    email: 1,
-                    cat: 1,
-                    imageupload: 1,
-                    path: 1,
-                    userId: 1,
-                    uploadTime: 1
-                },
+                fields: {},
                 filter: {},
-                option: { skip: 0, limit: 0, sort: { uploadTime: -1 } }
+                option: { skip: 0, limit: 5, sort: { uploadTime: -1 } }
             }
         };
     }
@@ -41,40 +33,82 @@ class Index extends React.Component {
                 Accept: "application/json",
                 Authorization: `Bearer ${this.userToken}`
             };
-            console.log(headers);
-            callApi(
-                "get",
-                `timeline/getPostData?params=${encodeURI(
-                    JSON.stringify(this.state.query)
-                )}`,
-                {},
-                headers
-            )
-                .then(response => {
-                    this.setState(
-                        {
-                            Category: response.data,
-                            picture: response.data,
-                            filteredPost: response.data
-                        },
-                        () => {
-                            this.setState({
-                                Category: uniqBy(this.state.Category, "cat")
-                            });
-                        }
-                    );
-                })
-                .catch(err => {
-                    console.log("Err--", err);
-                    if (err.response.status === 401) {
-                        localStorage.removeItem("tokenID");
-                        this.props.history.push("/login");
-                    }
-                });
+
+            callApi("get", "timeline/count", {}, headers).then(response => {
+                console.log("count------", response.data.count);
+                this.setState({ count: response.data.count });
+                console.log("count------", this.state.count);
+                this.getAllPosts();
+            });
+            $(window).scroll(this.scrollPaging);
         } else {
             this.props.history.push("/login");
         }
     }
+    componentWillUnmount() {
+        $(window).unbind("scroll");
+    }
+
+    scrollPaging = () => {
+        const windowScrollTop = $(window).scrollTop();
+        console.log("eindowScrollTop", windowScrollTop);
+        const windowHeight = $(window).height();
+        console.log("windowHeight--", windowHeight);
+        const documentHeight = $(document).height();
+        console.log("document Height---", documentHeight);
+        const scrollHeight = windowScrollTop + windowHeight;
+        console.log("scrollheight---", scrollHeight);
+        const fetchNewDataHeight = 0;
+        if (scrollHeight + fetchNewDataHeight >= documentHeight) {
+            if (
+                this.state.query.option.skip + this.state.query.option.limit <
+                this.state.count
+            ) {
+                this.state.query.option.skip += this.state.query.option.limit;
+                this.getAllPosts();
+                console.log("Scroll paging called");
+            }
+        }
+    };
+
+    getAllPosts = () => {
+        let headers = {
+            Accept: "application/json",
+            Authorization: `Bearer ${this.userToken}`
+        };
+
+        callApi(
+            "get",
+            `timeline/getPostData?params=${encodeURI(
+                JSON.stringify(this.state.query)
+            )}`,
+            {},
+            headers
+        )
+            .then(response => {
+                this.setState(
+                    {
+                        Category: this.state.Category.concat(response.data),
+                        picture: this.state.picture.concat(response.data),
+                        filteredPost: this.state.filteredPost.concat(
+                            response.data
+                        )
+                    },
+                    () => {
+                        this.setState({
+                            Category: uniqBy(this.state.Category, "cat")
+                        });
+                    }
+                );
+            })
+            .catch(err => {
+                if (err.response.status === 401) {
+                    localStorage.removeItem("tokenID");
+                    this.props.history.push("/login");
+                }
+            });
+    };
+
     handleChange = e => {
         let { value, name, files } = e.target;
         if (files != null) {
@@ -175,22 +209,29 @@ class Index extends React.Component {
     };
 
     mostCommented = e => {
-        let headers = {
-            Accept: "application/json",
-            Authorization: `Bearer ${this.userToken}`
-        };
-
-        callApi("get", "timeline/mostCommented", {}, headers)
-            .then(response => {
-                this.setState({ filteredPost: response.data });
-            })
-            .catch(err => {
-                if (err.response.status === 401) {
-                    localStorage.removeItem("tokenID");
-                    this.props.history.push("/login");
-                }
-            });
+        let mostCommented = this.state.picture.sort((a, b) => {
+            return b.comment.length - a.comment.length;
+        });
+        this.setState({ filteredPost: mostCommented });
     };
+
+    // mostCommented = e => {
+    //     let headers = {
+    //         Accept: "application/json",
+    //         Authorization: `Bearer ${this.userToken}`
+    //     };
+
+    //     callApi("get", "timeline/mostCommented", {}, headers)
+    //         .then(response => {
+    //             this.setState({ filteredPost: response.data });
+    //         })
+    //         .catch(err => {
+    //             if (err.response.status === 401) {
+    //                 localStorage.removeItem("tokenID");
+    //                 this.props.history.push("/login");
+    //             }
+    //         });
+    // };
     clickLike = (id, likes_id, e) => {
         e.preventDefault();
         let myData = {

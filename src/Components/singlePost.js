@@ -17,19 +17,8 @@ class SinglePost extends React.Component {
             username: "",
             email: "",
             like: [],
-
             query: {
-                fields: {
-                    _id: 1,
-                    comment: 1,
-                    likes: 1,
-                    email: 1,
-                    cat: 1,
-                    imageupload: 1,
-                    path: 1,
-                    userId: 1,
-                    uploadTime: 1
-                },
+                fields: {},
                 filter: { _id: this.props.match.params.picname },
                 option: { skip: 0, limit: 0, sort: { uploadTime: -1 } }
             }

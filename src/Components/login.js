@@ -6,12 +6,21 @@ const axios = require("axios");
 class Login extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { email: "", pass: "", data: [], data1: "" };
+        this.state = {
+            email: "",
+            pass: "",
+            data: [],
+            errMessage: "",
+            query: {
+                fields: {},
+                filter: {},
+                option: { skip: 0, limit: 0, sort: { uploadTime: -1 } }
+            }
+        };
     }
 
     componentDidMount() {
         if (localStorage.getItem("tokenID")) {
-            //console.log("Login--TokenId--", localStorage.getItem("tokenID"));
             this.props.history.push("/index");
         }
     }
@@ -26,33 +35,36 @@ class Login extends React.Component {
 
     handleClick = e => {
         e.preventDefault();
-        //console.log(this.state)
-        axios.post("http://localhost:8081/login", this.state).then(response => {
-            console.log("response.dtaa---", response.data);
+        let userDetails = {
+            email: this.state.email,
+            pass: this.state.pass,
+            query: this.state.query
+        };
 
-            if (response.data[0]._id !== undefined) {
-                localStorage.setItem("tokenID", JSON.stringify(response.data));
-                console.log(
-                    "Login--TokenId--",
-                    localStorage.getItem("tokenID")
-                );
-            }
-            //console.log("Inside login"+JSON.stringify(response.data));
-            this.setState({ data: response.data });
-
-            if (this.state.data !== "Invalid Username or Password") {
-                if (this.state.data !== "Verify your email id first") {
-                    if (this.state.data.length > 0) {
+        callApi("post", "login", userDetails)
+            .then(response => {
+                console.log("Response>>>", response);
+                if (response.data.length > 0) {
+                    if (!response.data[0].verify) {
+                        this.setState({
+                            errMessage: "Verify your email first"
+                        });
+                    } else {
+                        localStorage.setItem(
+                            "tokenID",
+                            JSON.stringify(response.data)
+                        );
                         this.props.history.push("/index");
                     }
+                } else if (response.status === 204) {
+                    this.setState({
+                        errMessage: "Invalid Username or Password"
+                    });
                 }
-            } else if (this.state.data === "Verify your email id first") {
-                this.setState({ data1: response.data });
-                console.log(this.state.data1);
-            } else {
-                this.setState({ data1: response.data });
-            }
-        });
+            })
+            .catch(err => {
+                console.log("err===", err);
+            });
     };
 
     render() {
@@ -88,7 +100,7 @@ class Login extends React.Component {
                                             />
                                         </li>
                                         <p style={{ color: "red" }}>
-                                            {this.state.data1}
+                                            {this.state.errMessage}
                                         </p>
                                         <li>
                                             <input type="checkbox" />

@@ -1,82 +1,72 @@
 import React from "react";
 import Axios from "axios";
 
-class ForgotPassword extends React.Component {
+class ResetPassword extends React.Component {
     constructor(props) {
         super(props);
-        this.state = {
-            email: "",
-            pass: "",
-            message: ""
-        };
+        this.state = { newPassword: "", confirmPassword: "", errMessage: "" };
+        console.log("PArams--", this.props.match.params.params);
     }
-    componentDidMount() {
-        if (localStorage.getItem("tokenID")) {
-            this.props.history.push("/index");
-        }
-    }
-
     handleChange = e => {
-        this.setState({ email: e.target.value });
+        let { name, value } = e.target;
+        this.setState({ [name]: value });
     };
-
     handleSubmit = e => {
         e.preventDefault();
-        let userEmail = { email: this.state.email };
-        Axios.post("http://localhost:8081/forgot", userEmail)
-            .then(response => {
-                if (response.data.length > 0) {
-                    if (this.state.email === response.data[0].email) {
-                        this.props.history.push(`/reset${this.state.email}`);
+        if (this.state.newPassword === this.state.confirmPassword) {
+            let userDetails = {
+                email: this.props.match.params.params,
+                password: this.state.newPassword
+            };
+
+            Axios.post("http://localhost:8081/reset", userDetails)
+                .then(response => {
+                    console.log("response--", response.status);
+                    if (response.status === 200) {
+                        this.props.history.push("/login");
                     }
-                } else {
-                    this.setState({ message: "Email not registered" });
-                }
-            })
-            .catch(err => {
-                console.log("Error--", err);
-            });
+                })
+                .catch(err => {
+                    console.log("Error--", err);
+                });
+        } else {
+            this.setState({ errMessage: "Password Mismatched" });
+        }
     };
 
-    // submitPassword = e => {
-    //     e.preventDefault();
-    //     let userDetails = { email: this.state.email, pass: this.state.pass };
-    //     callApi("post", "forgot", userDetails).then(response => {
-    //         console.log("response---->>>", response.data);
-    //         if (response.data.n === 1) {
-    //             this.props.history.push("/login");
-    //         } else {
-    //             this.setState({ message: "email not registered" });
-    //         }
-    //     });
-    // };
-
     render() {
-        console.log(this.state.email);
         return (
             <div>
                 <div className="container">
                     <div className="content">
                         <div className="content_rgt">
                             <div className="register_sec">
-                                <h1>Forgot Password</h1>
+                                <h1>Reset Password</h1>
                                 <form onSubmit={this.handleSubmit}>
                                     <ul>
                                         <li>
-                                            <span>Enter E-mail ID</span>
-
+                                            <span>Enter New Password</span>
                                             <input
-                                                type="email"
-                                                value={this.state.email}
-                                                placeholder="User@gmail.com"
-                                                name="email"
+                                                type="password"
+                                                name="newPassword"
+                                                placeholder="Enter your new password"
+                                                onChange={this.handleChange}
+                                                required
+                                            />
+                                        </li>
+                                        <li>
+                                            <span>Confirm Password</span>
+                                            <input
+                                                type="password"
+                                                name="confirmPassword"
+                                                placeholder="Enter your password again"
                                                 onChange={this.handleChange}
                                                 required
                                             />
                                         </li>
                                         <p style={{ color: "red" }}>
-                                            {this.state.message}
-                                        </p>
+                                            {this.state.errMessage}
+                                        </p>{" "}
                                         <li>
                                             <input
                                                 type="submit"
@@ -107,4 +97,5 @@ class ForgotPassword extends React.Component {
         );
     }
 }
-export default ForgotPassword;
+
+export default ResetPassword;

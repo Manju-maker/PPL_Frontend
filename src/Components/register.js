@@ -1,3 +1,4 @@
+import callApi from "./Utilities/callApi";
 import { Link } from "react-router-dom";
 import React from "react";
 const axios = require("axios");
@@ -10,7 +11,8 @@ class Register extends React.Component {
             pass: "",
             email: "",
             firstname: "",
-            lastname: ""
+            lastname: "",
+            errMessage: ""
         };
     }
     componentDidMount() {
@@ -20,8 +22,7 @@ class Register extends React.Component {
     }
 
     handleChange = e => {
-        const value = e.target.value;
-        const name = e.target.name;
+        const { name, value } = e.target;
         this.setState({
             [name]: value
         });
@@ -29,17 +30,19 @@ class Register extends React.Component {
 
     handleClick = e => {
         e.preventDefault();
-        axios
-            .post("http://localhost:8081/addUser", this.state)
+        let { username, pass, email, firstname, lastname } = this.state;
+        let userData = { username, pass, email, lastname, firstname };
+        callApi("post", "registerUser", userData)
             .then(response => {
-                if (
-                    response.data ===
-                    "registered Successfully, Please confirm your email id"
-                ) {
+                console.log("response---", response);
+                if (response.data.length > 0) {
                     this.props.history.push("/login");
                 } else {
-                    this.setState({ data: response.data });
+                    this.setState({ errMessage: "email already exist" });
                 }
+            })
+            .catch(err => {
+                console.log("err----", err);
             });
     };
 
@@ -87,7 +90,7 @@ class Register extends React.Component {
                                             />
                                         </li>
                                         <p style={{ color: "red" }}>
-                                            {this.state.data}
+                                            {this.state.errMessage}
                                         </p>
                                         <li>
                                             <span>First Name</span>
